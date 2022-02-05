@@ -1,16 +1,23 @@
-#ifndef _bno055_i2c_driver_dot_h
-#define _bno055_i2c_driver_dot_h
+#ifndef _bno055_i2c_activity_dot_h
+#define _bno055_i2c_activity_dot_h
 
 #include <ros/ros.h>
 #include <cstdlib>
 #include <cerrno>
 #include <cstring>
-#include <stdexcept>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#include <iostream>
-#include <chrono>
-#include <thread>
+
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/MagneticField.h>
+#include <sensor_msgs/Temperature.h>
+#include <std_srvs/Trigger.h>
+#include <std_msgs/UInt8.h>
+#include <std_msgs/Float64.h>
+#include <geometry_msgs/Vector3Stamped.h>
+#include <diagnostic_msgs/DiagnosticStatus.h>
+#include <diagnostic_msgs/DiagnosticArray.h>
+#include <diagnostic_msgs/KeyValue.h>
 
 #include <linux/i2c-dev.h>
 #include <smbus_functions.h>
@@ -18,7 +25,7 @@
 #define BNO055_ID 0xA0
 
 #define BNO055_ADDRESS_A 0x28 // default
-#define BNO055_ADDRESS_B 0x29
+#define BNO055_ADDRESS_B 0x29 // alternate
 
 #define BNO055_CHIP_ID_ADDR 0x00
 #define BNO055_ACCEL_REV_ID_ADDR 0x01
@@ -226,23 +233,50 @@ typedef struct {
   uint8_t system_error_code;
 } IMURecord;
 
-class BNO055I2CDriver {
+class BNO055I2CActivity {
   public:
-    BNO055I2CDriver(std::string device_, int address_);
-    void init();
-    bool reset();
-    IMURecord read();
+    BNO055I2CActivity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv);
+
+    bool start();
+    bool stop();
+    bool spinOnce();
+
+    bool onServiceReset(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
+    bool onServiceCalibrate(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
 
   private:
-    
-    // class variables
-    int file;
+    bool reset();
 
-    // parameters
-    std::string device;
-    int address;
+    // class variables
+    uint32_t seq = 0;
+    int file;
+    diagnostic_msgs::DiagnosticStatus current_status;
+
+    // ROS parameters
+    std::string param_frame_id;
+    std::string param_device;
+    int param_address;
+    bool param_check_all_addresses;
+    int param_diag_pub_interval;
+
+    // ROS node handles
+    ros::NodeHandle nh;
+    ros::NodeHandle nh_priv;
+
+    // ROS publishers
+    ros::Publisher pub_data;
+    ros::Publisher pub_raw;
+    ros::Publisher pub_mag;
+    ros::Publisher pub_temp;
+    ros::Publisher pub_status;
+    // Leigh Oliver 24/11/21
+    ros::Publisher pub_euler;
+
+    // ROS subscribers
+    ros::ServiceServer service_calibrate;
+    ros::ServiceServer service_reset;
 };
 
 }
 
-#endif // _bno055_i2c_driver_dot_h
+#endif // _bno055_i2c_activity_dot_h
