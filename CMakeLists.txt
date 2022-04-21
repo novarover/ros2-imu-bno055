@@ -1,24 +1,56 @@
-cmake_minimum_required(VERSION 2.8.3)
-project(driver_bno055)
+cmake_minimum_required(VERSION 3.5)
+project(ros2-imu-bno055)
 
-add_compile_options(-std=c++11 -li2c)
+# Default to C99
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 99)
+endif()
 
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs std_msgs diagnostic_msgs geometry_msgs)
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
 
-catkin_package(INCLUDE_DIRS include)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
-include_directories(include ${catkin_INCLUDE_DIRS})
+find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 
-add_executable(bno055_i2c_node src/bno055_i2c_activity.cpp src/bno055_i2c_node.cpp src/watchdog.cpp)
-#add_dependencies(bno055_i2c_node diagnostic_msgs_gencpp)
+find_package(core REQUIRED)
 
-include_directories(${catkin_INCLUDE_DIRS})
+# include message types
+find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(diagnostic_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+
+#catkin_package(INCLUDE_DIRS include)
+
+include_directories(
+  ${catkin_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# Add all the installation directories
+install(DIRECTORY
+  #launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+add_executable(bno055_i2c_node 
+  src/bno055_i2c_activity.cpp 
+  src/bno055_i2c_node.cpp 
+  src/watchdog.cpp
+)
 
 target_link_libraries(bno055_i2c_node ${catkin_LIBRARIES})
 
 install(TARGETS bno055_i2c_node
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  DESTINATION lib/${PROJECT_NAME}
 )
 
+ament_package()
