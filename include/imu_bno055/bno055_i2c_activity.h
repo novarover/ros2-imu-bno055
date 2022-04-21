@@ -1,7 +1,34 @@
 #ifndef _bno055_i2c_activity_dot_h
+#pragma once
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Monash Nova Rover Team
+
+This class monitors for data from the IMU, and
+publishes raw data to a ROS topic to be interpreted
+in python.
+This code is adapted for ROS2 from code in
+https://github.com/leighleighleigh/ros-imu-bno055
+by Leigh Oliver, modified from original code in
+https://github.com/dheera/ros-imu-bno055
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+NODE: IMU_pub
+TOPICS:
+  - /elec/imu_pub
+SERVICES: None
+ACTIONS:  None
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+PACKAGE:    ros2-imu-bno055
+AUTHOR(S):  Max Tory
+CREATION:   21/04/2022
+EDITED:     21/04/2022
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
 #define _bno055_i2c_activity_dot_h
 
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 #include <cstdlib>
 #include <cerrno>
 #include <cstring>
@@ -233,9 +260,9 @@ typedef struct {
   uint8_t system_error_code;
 } IMURecord;
 
-class BNO055I2CActivity {
+class BNO055I2CActivity : public rclcpp::Node{
   public:
-    BNO055I2CActivity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv);
+    BNO055I2CActivity();
 
     bool start();
     bool stop();
@@ -259,22 +286,18 @@ class BNO055I2CActivity {
     bool param_check_all_addresses;
     int param_diag_pub_interval;
 
-    // ROS node handles
-    ros::NodeHandle nh;
-    ros::NodeHandle nh_priv;
-
     // ROS publishers
-    ros::Publisher pub_data;
-    ros::Publisher pub_raw;
-    ros::Publisher pub_mag;
-    ros::Publisher pub_temp;
-    ros::Publisher pub_status;
+    rclcpp::Publisher pub_data;
+    rclcpp::Publisher pub_raw;
+    rclcpp::Publisher pub_mag;
+    rclcpp::Publisher pub_temp;
+    rclcpp::Publisher pub_status;
     // Leigh Oliver 24/11/21
-    ros::Publisher pub_euler;
+    rclcpp::Publisher pub_euler;
 
-    // ROS subscribers
-    ros::ServiceServer service_calibrate;
-    ros::ServiceServer service_reset;
+    // ROS2 services to calibrate or reset the IMU
+    rclcpp::Service<std_srvs::Trigger> service_calibrate;
+    rclcpp::Service<std_srvs::Trigger> service_reset;
 };
 
 }

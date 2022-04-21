@@ -2,7 +2,7 @@
  * Author: Dheera Venkatraman <dheera@dheera.net>
  *
  * Defines a BNO055I2C Activity class, constructed with node handles
- * and which handles all ROS duties.
+ * and which handles all ROS utilities.
  */
 
 #include "imu_bno055/bno055_i2c_activity.h"
@@ -11,14 +11,16 @@ namespace imu_bno055 {
 
 // ******** constructors ******** //
 
-BNO055I2CActivity::BNO055I2CActivity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv) :
-  nh(_nh), nh_priv(_nh_priv) {
-    ROS_INFO("initializing");
-    nh_priv.param("device", param_device, (std::string)"/dev/i2c-1");
-    nh_priv.param("address", param_address, (int)BNO055_ADDRESS_B);
-    nh_priv.param("check_all_addresses",param_check_all_addresses, (bool)true);
-    nh_priv.param("frame_id", param_frame_id, (std::string)"imu");
-    nh_priv.param("diag_pub_interval",param_diag_pub_interval,(int)5);
+BNO055I2CActivity::BNO055I2CActivity() : Node("IMU Node"){
+    ROS_INFO(this->get_logger(), "initializing IMU node");
+    this->declare_parameter<std::string>("device", "/dev/i2c-1");
+    this->declare_parameter<int>("address", BNO055_ADDRESS_B);
+    this->declare_parameter<bool>("check_all_addresses",true);
+    this->declare_parameter<std::string>("frame_id", "imu");
+    this->declare_parameter<int>("diag_pub_interval",5);
+
+    service_calibrate = this->create_service<std_srvs::Trigger>("calibrate", &onServiceCalibrate);
+    service_reset = this->create_service<std_srvs::Trigger>("reset", &onServiceReset);
 
     current_status.level = 0;
     current_status.name = "BNO055 IMU";
@@ -58,35 +60,36 @@ BNO055I2CActivity::BNO055I2CActivity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_
 // ******** private methods ******** //
 
 bool BNO055I2CActivity::reset() {
+    // TODO: use non-blocking sleeps
     int i = 0;
 
     _i2c_smbus_write_byte_data(file, BNO055_OPR_MODE_ADDR, BNO055_OPERATION_MODE_CONFIG);
-    ros::Duration(0.025).sleep();
+    std::sleep(0.025);
 
     // reset
     _i2c_smbus_write_byte_data(file, BNO055_SYS_TRIGGER_ADDR, 0x20);
-    ros::Duration(0.025).sleep();
+    std::sleep(0.025);
 
     // wait for chip to come back online
     while(_i2c_smbus_read_byte_data(file, BNO055_CHIP_ID_ADDR) != BNO055_ID) {
-        ros::Duration(0.010).sleep();
+        sleep(0.010);
         if(i++ > 500) {
-            ROS_ERROR_STREAM("chip did not come back online in 5 seconds after reset");
+            ROS_ERROR_STREAM(this->get_logger(), "chip did not come back online in 5 seconds after reset");
             return false;
         }
     }
-    ros::Duration(0.100).sleep();
+    std::sleep(0.100);
 
     // normal power mode
     _i2c_smbus_write_byte_data(file, BNO055_PWR_MODE_ADDR, BNO055_POWER_MODE_NORMAL);
-    ros::Duration(0.010).sleep();
+    std::sleep(0.010);
 
     _i2c_smbus_write_byte_data(file, BNO055_PAGE_ID_ADDR, 0);
     _i2c_smbus_write_byte_data(file, BNO055_SYS_TRIGGER_ADDR, 0);
-    ros::Duration(0.025).sleep();
+    std::sleep(0.025);
 
     _i2c_smbus_write_byte_data(file, BNO055_OPR_MODE_ADDR, BNO055_OPERATION_MODE_NDOF); // NDOF is absolute orientation
-    ros::Duration(0.025).sleep();
+    std::sleep(0.025);
 
     return true;
 }
@@ -94,36 +97,24 @@ bool BNO055I2CActivity::reset() {
 // ******** public methods ******** //
 
 bool BNO055I2CActivity::start() {
-    ROS_INFO("starting");
+    ROS_INFO(this->get_logger(), "starting");
 
-    if(!pub_data) pub_data = nh.advertise<sensor_msgs::Imu>("data", 1);
-    if(!pub_raw) pub_raw = nh.advertise<sensor_msgs::Imu>("raw", 1);
-    if(!pub_mag) pub_mag = nh.advertise<sensor_msgs::MagneticField>("mag", 1);
-    if(!pub_temp) pub_temp = nh.advertise<sensor_msgs::Temperature>("temp", 1);
-    if(!pub_status) pub_status = nh.advertise<diagnostic_msgs::DiagnosticStatus>("status", 1);
+    if(!pub_data) pub_data = this->create_publisher<sensor_msgs::Imu>("data", 1);
+    if(!pub_raw) pub_raw = this->create_publisher<sensor_msgs::Imu>("raw", 1);
+    if(!pub_mag) pub_mag = this->create_publisher<sensor_msgs::MagneticField>("mag", 1);
+    if(!pub_temp) pub_temp = this->create_publisher<sensor_msgs::Temperature>("temp", 1);
+    if(!pub_status) pub_status = this->create_publisher<diagnostic_msgs::DiagnosticStatus>("status", 1);
     // Leigh Oliver 24/11/21
-    if(!pub_euler) pub_euler = nh.advertise<geometry_msgs::Vector3Stamped>("euler_deg", 1);
-
-    if(!service_calibrate) service_calibrate = nh.advertiseService(
-        "calibrate",
-        &BNO055I2CActivity::onServiceCalibrate,
-        this
-    );
-
-    if(!service_reset) service_reset = nh.advertiseService(
-        "reset",
-        &BNO055I2CActivity::onServiceReset,
-        this
-    );
+    if(!pub_euler) pub_euler = this->create_publisher<geometry_msgs::Vector3Stamped>("euler_deg", 1);
 
     // Handle to the I2C bus
     file = open(param_device.c_str(), O_RDWR);
+
     // Check that we have access to this bus
     if(ioctl(file, I2C_SLAVE, param_address) < 0) {
-        ROS_ERROR("i2c open failed, check permissions");
+        ROS_ERROR(this->get_logger(), "i2c open failed, check permissions");
         return false;
     }
-
 
     int checkAddressCounter = 0;
     bool foundDevice = false;
@@ -132,7 +123,7 @@ bool BNO055I2CActivity::start() {
     {
         // Update the address we are accessing
         if(ioctl(file, I2C_SLAVE, param_address) < 0) {
-            ROS_ERROR("i2c open failed, check permissions");
+            ROS_ERROR(this->get_logger(), "i2c open failed, check permissions");
             return false;
         }
         
@@ -140,10 +131,10 @@ bool BNO055I2CActivity::start() {
         uint8_t foundChipID = _i2c_smbus_read_byte_data(file, BNO055_CHIP_ID_ADDR);
         
         if(foundChipID != BNO055_ID) {
-            ROS_WARN("incorrect chip ID. want=0x%x, got=0x%x",BNO055_ID,foundChipID);
-            ROS_WARN("No BNO055 found on bus %s, at address 0x%02x",param_device.c_str(),param_address);
+            ROS_WARN(this->get_logger(), "incorrect chip ID. want=0x%x, got=0x%x",BNO055_ID,foundChipID);
+            ROS_WARN(this->get_logger(), "No BNO055 found on bus %s, at address 0x%02x",param_device.c_str(),param_address);
         }else{
-            ROS_INFO("Found BNO055 on bus %s, at address 0x%02x",param_device.c_str(),param_address);
+            ROS_INFO(this->get_logger(), "Found BNO055 on bus %s, at address 0x%02x",param_device.c_str(),param_address);
             // We have found the bno!
             foundDevice = true;
         }
@@ -152,6 +143,7 @@ bool BNO055I2CActivity::start() {
         if(!foundDevice)
         {
             // Change the param_address and scan A/B addresses
+            this->get_parameter("check_all_addresses", param_check_all_addresses);
             if(param_check_all_addresses)
             {
                 // Change address
@@ -172,7 +164,7 @@ bool BNO055I2CActivity::start() {
                     // return false.
                     if(!foundDevice)
                     {
-                        ROS_ERROR("no BNO055 devices found on any address");
+                        ROS_ERROR(this->get_logger(), "no BNO055 devices found on any address");
                         return false;
                     }
                 }
@@ -191,7 +183,7 @@ bool BNO055I2CActivity::start() {
       << " bl:" << _i2c_smbus_read_byte_data(file, BNO055_BL_REV_ID_ADDR));
 
     if(!reset()) {
-        ROS_ERROR("chip reset and setup failed");
+        ROS_ERROR(this->get_logger(), "chip reset and setup failed");
         return false;
     }
 
@@ -199,9 +191,9 @@ bool BNO055I2CActivity::start() {
 }
 
 bool BNO055I2CActivity::spinOnce() {
-    ros::spinOnce();
+    rclcpp::spinOnce(this);
 
-    ros::Time time = ros::Time::now();
+    rclcpp::Time time = rclcpp::Time::now();
 
     IMURecord record;
 
@@ -299,7 +291,7 @@ bool BNO055I2CActivity::spinOnce() {
 }
 
 bool BNO055I2CActivity::stop() {
-    ROS_INFO("stopping");
+    ROS_INFO(this->get_logger(), "stopping");
 
     if(pub_data) pub_data.shutdown();
     if(pub_raw) pub_raw.shutdown();
@@ -317,7 +309,7 @@ bool BNO055I2CActivity::stop() {
 
 bool BNO055I2CActivity::onServiceReset(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res) {
     if(!reset()) {
-        ROS_ERROR("chip reset and setup failed");
+        ROS_ERROR(this->get_logger(), "chip reset and setup failed");
         return false;
     }
     return true;
