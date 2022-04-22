@@ -292,7 +292,6 @@ bool BNO055I2CActivity::spinOnce() {
 
 bool BNO055I2CActivity::stop() {
     ROS_INFO(this->get_logger(), "stopping");
-
     if(pub_data) pub_data.shutdown();
     if(pub_raw) pub_raw.shutdown();
     if(pub_mag) pub_mag.shutdown();
