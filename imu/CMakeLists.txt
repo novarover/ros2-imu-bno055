@@ -29,7 +29,6 @@ find_package(geometry_msgs REQUIRED)
 #catkin_package(INCLUDE_DIRS include)
 
 include_directories(
-  ${catkin_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -40,16 +39,16 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}
 )
 
-add_executable(bno055_i2c_node 
+add_executable(imu_node 
   src/imu_activity.cpp 
   src/imu_node.cpp 
   src/watchdog.cpp
 )
 
-target_link_libraries(bno055_i2c_node ${catkin_LIBRARIES})
-ament_target_dependencies(bno055_i2c_node rclcpp sensor_msgs std_msgs geometry_msgs std_srvs diagnostic_msgs)
+target_link_libraries(imu_node ${catkin_LIBRARIES})
+ament_target_dependencies(imu_node rclcpp sensor_msgs std_msgs geometry_msgs std_srvs diagnostic_msgs)
 
-install(TARGETS bno055_i2c_node
+install(TARGETS imu_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
