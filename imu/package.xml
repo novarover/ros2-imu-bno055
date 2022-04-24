@@ -4,7 +4,7 @@
   <name>imu</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="torymax01@gmail.com">max</maintainer>
+  <maintainer email="torymax01@gmail.com">Monash Nova Rover</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
