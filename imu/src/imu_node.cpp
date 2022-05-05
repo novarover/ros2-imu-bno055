@@ -12,7 +12,13 @@ AUTHOR(S):  Max Tory
 IMUNode::IMUNode() : Node("imu_node") {
     // Set up the object that interacts with the raw IMU data
     imu.start(this->get_logger());
-    
+ 	
+	// get a raw inital offset to un-offset the fused data :)	
+	IMURecord imuData = imu.getData();
+	initial_x = imuData.raw_magenetic_field_x;
+	initial_y = imuData.raw_magenetic_field_y;
+	initial_z = imuData.raw_magenetic_field_z;
+   
     // Initialise ros timer
     timer = this->create_wall_timer(100ms, std::bind(&IMUNode::publishData, this));
     
@@ -33,7 +39,6 @@ IMUNode::IMUNode() : Node("imu_node") {
         "/imu/calibrate",
         std::bind(&IMUNode::onServiceCalibrate, this, _1, _2)
     );
-
     // Set up the watchdog to monitor the IMU
     this->watchdog.start(5000ms);
 }
@@ -83,9 +88,9 @@ void IMUNode::fillIMUData(sensor_msgs::msg::Imu& msgIMU, IMURecord& imuData){
 
     // orientation quaternion
     msgIMU.orientation.x = (double) imuData.fused_orientation_x / quat_norm;
-    msgIMU.orientation.y = (double) imuData.fused_orientation_x / quat_norm;
-    msgIMU.orientation.z = (double) imuData.fused_orientation_x / quat_norm;
-    msgIMU.orientation.w = (double) imuData.fused_orientation_x / quat_norm;
+    msgIMU.orientation.y = (double) imuData.fused_orientation_y / quat_norm;
+    msgIMU.orientation.z = (double) imuData.fused_orientation_z / quat_norm;
+    msgIMU.orientation.w = (double) imuData.fused_orientation_w / quat_norm;
 
     // Linear acceleration
     msgIMU.linear_acceleration.x = (double)imuData.fused_linear_acceleration_x / 100.0;
@@ -104,13 +109,19 @@ void IMUNode::fillEulerData(geometry_msgs::msg::Vector3Stamped& msgEuler, IMURec
     :param msgEuler: message to be sent over ROS
     :param imuData: raw data struct filled by the IMU
     */
-    msgEuler.vector.x = (double)imuData.fused_roll / (double)16;
-    msgEuler.vector.y = (double)imuData.fused_pitch / (double)16;
-    msgEuler.vector.z = (double)imuData.fused_heading / (double)16;
+    msgEuler.vector.x = (double)imuData.fused_roll / (double)16 + initial_x / (double)16;
+    msgEuler.vector.y = (double)imuData.fused_pitch / (double)16 + inital_y / (double)16; 
+    msgEuler.vector.z = (double)imuData.fused_heading / (double)16 + initial_z / (double)16; 
 }
 
 void IMUNode::onServiceReset(const std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res) {
     imu.onServiceReset(req, res, this->get_logger());
+		
+	// get a raw inital offset to un-offset the fused data :)	
+	IMURecord imuData = imu.getData();
+	initial_x = imuData.raw_magenetic_field_x;
+	initial_y = imuData.raw_magenetic_field_y;
+	initial_z = imuData.raw_magenetic_field_z;
 }
 
 void IMUNode::onServiceCalibrate(const std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res) {
