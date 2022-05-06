@@ -83,9 +83,9 @@ void IMUNode::fillIMUData(sensor_msgs::msg::Imu& msgIMU, IMURecord& imuData){
 
     // orientation quaternion
     msgIMU.orientation.x = (double) imuData.fused_orientation_x / quat_norm;
-    msgIMU.orientation.y = (double) imuData.fused_orientation_x / quat_norm;
-    msgIMU.orientation.z = (double) imuData.fused_orientation_x / quat_norm;
-    msgIMU.orientation.w = (double) imuData.fused_orientation_x / quat_norm;
+    msgIMU.orientation.y = (double) imuData.fused_orientation_y / quat_norm;
+    msgIMU.orientation.z = (double) imuData.fused_orientation_z / quat_norm;
+    msgIMU.orientation.w = (double) imuData.fused_orientation_w / quat_norm;
 
     // Linear acceleration
     msgIMU.linear_acceleration.x = (double)imuData.fused_linear_acceleration_x / 100.0;
