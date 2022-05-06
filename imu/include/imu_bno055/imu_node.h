@@ -61,6 +61,7 @@ class IMUNode : public rclcpp::Node {
 
     // --------------------------------------------------------------//
     private:
+	int16_t initial_yaw;
 
     // Clock for accessing IMU data
     rclcpp::TimerBase::SharedPtr timer;

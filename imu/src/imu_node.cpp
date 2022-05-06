@@ -12,7 +12,14 @@ AUTHOR(S):  Max Tory
 IMUNode::IMUNode() : Node("imu_node") {
     // Set up the object that interacts with the raw IMU data
     imu.start(this->get_logger());
+ 	
+	// get a raw inital offset to un-offset the fused data :)	
+	IMURecord imuData = imu.getData();
     
+    // initial yaw in degrees
+	initial_yaw = atan2(imuData.raw_magnetic_field_y, imuData.raw_magnetic_field_x) * 180/M_PI;
+    std::cout << initial_yaw << std::endl;
+   
     // Initialise ros timer
     timer = this->create_wall_timer(100ms, std::bind(&IMUNode::publishData, this));
     
@@ -33,7 +40,6 @@ IMUNode::IMUNode() : Node("imu_node") {
         "/imu/calibrate",
         std::bind(&IMUNode::onServiceCalibrate, this, _1, _2)
     );
-
     // Set up the watchdog to monitor the IMU
     this->watchdog.start(5000ms);
 }
@@ -105,12 +111,18 @@ void IMUNode::fillEulerData(geometry_msgs::msg::Vector3Stamped& msgEuler, IMURec
     :param imuData: raw data struct filled by the IMU
     */
     msgEuler.vector.x = (double)imuData.fused_roll / (double)16;
-    msgEuler.vector.y = (double)imuData.fused_pitch / (double)16;
-    msgEuler.vector.z = (double)imuData.fused_heading / (double)16;
+    msgEuler.vector.y = (double)imuData.fused_pitch / (double)16; 
+    msgEuler.vector.z = (double)imuData.fused_heading / (double)16 + initial_yaw; 
+    msgEuler.vector.z -= msgEuler.vector.z > 360 ? 360 : 0;
+    msgEuler.vector.z += msgEuler.vector.z < 0 ? 360 : 0;
 }
 
 void IMUNode::onServiceReset(const std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res) {
     imu.onServiceReset(req, res, this->get_logger());
+		
+	// get a raw inital offset to un-offset the fused data :)	
+	IMURecord imuData = imu.getData();
+	initial_yaw = atan2(imuData.raw_magnetic_field_y, imuData.raw_magnetic_field_x) * 180/M_PI;
 }
 
 void IMUNode::onServiceCalibrate(const std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res) {
