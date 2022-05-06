@@ -127,3 +127,13 @@ void IMUNode::onServiceReset(const std_srvs::srv::Trigger::Request::SharedPtr re
 void IMUNode::onServiceCalibrate(const std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res) {
     imu.onServiceCalibrate(req, res, this->get_logger());
 }
+
+int main(int argc, char** argv){
+    // initialising ros2 
+    rclcpp::init(argc, argv);
+
+    // spinning the IMU node
+    rclcpp::spin(std::make_shared<IMUNode>());
+
+    rclcpp::shutdown();
+}

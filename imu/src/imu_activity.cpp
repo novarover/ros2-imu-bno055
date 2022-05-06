@@ -12,6 +12,12 @@ using namespace imu_bno055;
 using namespace std::literals::chrono_literals;
 
 IMUActivity::IMUActivity(){
+    // Initialising important params
+    param_device = (std::string)"/dev/i2c-1";
+    param_address = (int)BNO055_ADDRESS_B;
+    param_check_all_addresses = true;
+    param_diag_pub_interval = 5;
+
     // Initialising diagnostic things
     current_status.level = 0;
     current_status.name = "BNO055 IMU";
