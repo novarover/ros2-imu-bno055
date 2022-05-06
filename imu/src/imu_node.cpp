@@ -15,9 +15,10 @@ IMUNode::IMUNode() : Node("imu_node") {
  	
 	// get a raw inital offset to un-offset the fused data :)	
 	IMURecord imuData = imu.getData();
-	initial_x = imuData.raw_magenetic_field_x;
-	initial_y = imuData.raw_magenetic_field_y;
-	initial_z = imuData.raw_magenetic_field_z;
+    
+    // initial yaw in degrees
+	initial_yaw = atan2(imuData.raw_magnetic_field_y, imuData.raw_magnetic_field_x) * 180/M_PI;
+    initial_yaw += initial_yaw < 0 ? 360 : 0;
    
     // Initialise ros timer
     timer = this->create_wall_timer(100ms, std::bind(&IMUNode::publishData, this));
@@ -109,9 +110,9 @@ void IMUNode::fillEulerData(geometry_msgs::msg::Vector3Stamped& msgEuler, IMURec
     :param msgEuler: message to be sent over ROS
     :param imuData: raw data struct filled by the IMU
     */
-    msgEuler.vector.x = (double)imuData.fused_roll / (double)16 + initial_x / (double)16;
-    msgEuler.vector.y = (double)imuData.fused_pitch / (double)16 + inital_y / (double)16; 
-    msgEuler.vector.z = (double)imuData.fused_heading / (double)16 + initial_z / (double)16; 
+    msgEuler.vector.x = (double)imuData.fused_roll / (double)16;
+    msgEuler.vector.y = (double)imuData.fused_pitch / (double)16; 
+    msgEuler.vector.z = (double)imuData.fused_heading / (double)16 + initial_yaw; 
 }
 
 void IMUNode::onServiceReset(const std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res) {
@@ -119,9 +120,8 @@ void IMUNode::onServiceReset(const std_srvs::srv::Trigger::Request::SharedPtr re
 		
 	// get a raw inital offset to un-offset the fused data :)	
 	IMURecord imuData = imu.getData();
-	initial_x = imuData.raw_magenetic_field_x;
-	initial_y = imuData.raw_magenetic_field_y;
-	initial_z = imuData.raw_magenetic_field_z;
+	initial_yaw = atan2(imuData.raw_magnetic_field_y, imuData.raw_magnetic_field_x) * 180/M_PI;
+    initial_yaw += initial_yaw < 0 ? 360 : 0;
 }
 
 void IMUNode::onServiceCalibrate(const std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res) {
